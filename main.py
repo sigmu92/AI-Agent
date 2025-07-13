@@ -14,25 +14,27 @@ def load_client():
 
 def get_inputs():
     inputs = sys.argv
-    if len(inputs) != 2:
+    if len(inputs) == 1:
         print("invalid inputs, please enter a prompt")
         sys.exit(1)
-    return inputs[1]
-
-def print_response(response):
-    print(response.text)
-    print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
-    print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
-
+    return inputs
 
 def main():
     client, model = load_client()
-    prompt = get_inputs()
+    inputs = get_inputs()
+    prompt = inputs[1]
+    
     messages = [
         types.Content(role="user", parts=[types.Part(text=prompt)])
     ]
     response = client.models.generate_content(model=model, contents=messages)
-    print_response(response)
+
+    print(response.text)
+    if len(inputs) == 3 and inputs[2] == "--verbose":
+        print(f"User prompt: {prompt}")
+        print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
+        print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+
 
 
 
