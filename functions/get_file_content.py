@@ -1,0 +1,21 @@
+import os
+from functions.config import MAX_CHAR
+
+def get_file_content(working_directory, file_path):
+
+    full_path = os.path.join(working_directory, file_path)
+    
+    if not working_directory in os.path.abspath(full_path):
+        return f'Error: Cannot list "{file_path}" as it is outside the permitted working directory'
+    elif not os.path.isfile(full_path):
+        return f'Error: File not found or is not a regular file: {file_path}'
+    
+    too_large_message = f'[...File "{file_path}" truncated at 10000 characters]'
+
+    with open(full_path, "r") as f:
+        file_content_string = f.read(MAX_CHAR)
+    
+    if len(file_content_string) == 10000:
+        file_content_string += too_large_message
+    
+    return file_content_string
