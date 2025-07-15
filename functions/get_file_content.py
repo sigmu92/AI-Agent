@@ -12,9 +12,12 @@ def get_file_content(working_directory, file_path):
     
     too_large_message = f'[...File "{file_path}" truncated at 10000 characters]'
 
-    with open(full_path, "r") as f:
-        file_content_string = f.read(MAX_CHAR)
-    
+    try:
+
+        with open(full_path, "r") as f:
+            file_content_string = f.read(MAX_CHAR)
+    except:
+        return f'Error: Unable read file "{file_path}" using open() and read()'
     if len(file_content_string) == 10000:
         file_content_string += too_large_message
     
