@@ -1,6 +1,7 @@
 import os
 import subprocess
 from functions.config import MAX_RUNTIME
+from google.genai import types
 
 def run_python_file(working_directory, file_path):
 
@@ -32,3 +33,17 @@ def run_python_file(working_directory, file_path):
         return_string += f" Process exited with code {exit_code} "
     
     return return_string
+
+schema_run_python_file = types.FunctionDeclaration(
+    name="run_python_file",
+    description=f"Run python file using the specifed file, if the specified file path, constrained to the working directory, is a python (.py) file.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "file_path": types.Schema(
+                type=types.Type.STRING,
+                description="The file path to the desired file, relative to the working directory.",
+            ),
+        },
+    ),
+)
