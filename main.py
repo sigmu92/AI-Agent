@@ -3,11 +3,11 @@ import sys
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from functions import *
-from functions.get_files_info import schema_get_files_info
-from functions.get_file_content import schema_get_file_content
-from functions.write_file import schema_write_file
-from functions.run_python_file import schema_run_python_file
+
+from functions.get_files_info import schema_get_files_info, get_files_info
+from functions.get_file_content import schema_get_file_content, get_file_content
+from functions.write_file import schema_write_file, write_file
+from functions.run_python_file import schema_run_python_file, run_python_file
 
 
 def load_client():
@@ -25,7 +25,12 @@ def get_inputs():
     return inputs
 
 def call_function(function_call_part, verbose = False):
-    available_functions = ["get_files_info", "get_file_content", "write_file", "run_python_file"]
+    
+    working_directory = "calculator"
+    available_functions = {"get_files_info": get_files_info,
+                            "get_file_content":get_file_content,
+                            "write_file": write_file,
+                            "run_python_file": run_python_file}
     function_name = function_call_part.name
     function_args = function_call_part.args
     if not function_name in available_functions:
@@ -38,18 +43,40 @@ def call_function(function_call_part, verbose = False):
                 )
             ],
         )
+    function_args['working_directory'] = working_directory
+    try:
+        output = available_functions[function_name](**function_args)
+    except Exception as e:
+        return f'Error: Unable to execute {function_name} due to error {e}'
+    
     if verbose:
-        print(print(f"Calling function: {function_name}({function_args})"))
+        print(f"Calling function: {function_name}({function_args})")
     else:
-        print(print(f"Calling function: {function_name}"))
+        print(f"Calling function: {function_name}")
+
+    return types.Content(
+    role="tool",
+    parts=[
+        types.Part.from_function_response(
+            name=function_name,
+            response={"result": output},
+        )
+    ],
+)
+
 
 
 def main():
+    verbose = False
     client, model = load_client()
     
     inputs = get_inputs()
     prompt = inputs[1]
+    if len(inputs) == 3 and inputs[2] == "--verbose":
+        verbose = True
 
+    
+    
     system_prompt = """
     You are a helpful AI coding agent.
 
@@ -78,14 +105,21 @@ def main():
 
     if not response.text == None:
         print(response.text)
+
     function_calls = response.function_calls
+    
     if len(function_calls) > 0:
-        for call in function_calls:
-            print(f"Calling function: {call.name}({call.args})")
-    if len(inputs) == 3 and inputs[2] == "--verbose":
+        for item in function_calls:
+            function_response = call_function(item, verbose)
+    
+    if function_response.parts[0].function_response.response == None:
+        raise "Error: No response from function call"
+
+    if verbose:
         print(f"User prompt: {prompt}")
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+        print(f"-> {function_response.parts[0].function_response.response}")
 
 
 
