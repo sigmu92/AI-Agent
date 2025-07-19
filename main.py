@@ -55,14 +55,14 @@ def call_function(function_call_part, verbose = False):
         print(f"Calling function: {function_name}")
 
     return types.Content(
-    role="tool",
-    parts=[
-        types.Part.from_function_response(
-            name=function_name,
-            response={"result": output},
-        )
-    ],
-)
+        role="tool",
+        parts=[
+            types.Part.from_function_response(
+                name=function_name,
+                response={"result": output},
+            )
+        ],
+    )
 
 
 
@@ -78,16 +78,19 @@ def main():
     system_prompt = """
     You are a helpful AI coding agent.
 
-    When a user asks a question or makes a request, make and execute a function call plan. You can perform the following operations:
+    When a user asks a question or makes a request, execute a function call plan. You can perform the following operations:
 
-    - List files and directories
-    - Read files
+    - List contents of files and directories
     - Write to files
     - Run python programs
    
-    Use the operations provided to you to answer the questions. Use the get_files_info operation. Do not make further requests of the user. 
+    LOCATE FILES USING THE GET_FILES_INFO SCHEMA.
     
-    All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
+    Use the operations provided to you to address the user's request. Do not make further requests of the user. 
+    
+    All paths you provide should be relative to the working directory. The working directory may have additional directories that you can access via You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
+
+    Fix bugs by addressing the logic issues in the code. Do not use print statements to acheive the user's desired output.
 
     Do not respond with text until you have completed the request or answered the user's question. When you have completed the request or answered the questions, respond with a description of the issue or the answer to the question.
     """
@@ -122,8 +125,7 @@ def main():
                 print(response.text)
                 return
             if function_call != None:
-                for call in function_call:
-                    function_response = call_function(call, verbose)
+                function_response = call_function(function_call[0], verbose)
             else:
                 print("Error: No function call requested")
                 return
