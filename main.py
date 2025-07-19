@@ -25,7 +25,7 @@ def get_inputs():
     return inputs
 
 def call_function(function_call_part, verbose = False):
-    
+
     working_directory = "calculator"
     available_functions = {"get_files_info": get_files_info,
                             "get_file_content":get_file_content,
@@ -48,7 +48,7 @@ def call_function(function_call_part, verbose = False):
         output = available_functions[function_name](**function_args)
     except Exception as e:
         return f'Error: Unable to execute {function_name} due to error {e}'
-    
+
     if verbose:
         print(f"Calling function: {function_name}({function_args})")
     else:
@@ -74,17 +74,22 @@ def main():
     prompt = inputs[1]
     if len(inputs) == 3 and inputs[2] == "--verbose":
         verbose = True
-
-    
     
     system_prompt = """
     You are a helpful AI coding agent.
 
-    When a user asks a question or makes a request, make a function call plan. You can perform the following operations:
+    When a user asks a question or makes a request, make and execute a function call plan. You can perform the following operations:
 
     - List files and directories
-
+    - Read files
+    - Write to files
+    - Run python programs
+   
+    Use the operations provided to you to answer the questions. Use the get_files_info operation. Do not make further requests of the user. 
+    
     All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
+
+    Do not respond with text until you have completed the request or answered the user's question. When you have completed the request or answered the questions, respond with a description of the issue or the answer to the question.
     """
     available_functions = types.Tool(
         function_declarations=[
@@ -98,28 +103,49 @@ def main():
     messages = [
         types.Content(role="user", parts=[types.Part(text=prompt)])
     ]
-    response = client.models.generate_content(
-        model=model,
-        contents=messages,
-        config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt))
 
-    if not response.text == None:
-        print(response.text)
+    count = 0
 
-    function_calls = response.function_calls
+    try:
+        while count < 20:
+  
+            response = client.models.generate_content(
+                model=model,
+                contents=messages,
+                config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt))
+
+            for candidate in response.candidates:
+                messages.append(types.Content(role = candidate.content.role, parts = candidate.content.parts))
+
+            function_call = response.function_calls     
+            if response.text != None:
+                print(response.text)
+                return
+            if function_call != None:
+                for call in function_call:
+                    function_response = call_function(call, verbose)
+            else:
+                print("Error: No function call requested")
+                return
+
+            if function_response.parts[0].function_response.response == None:
+                raise "Error: No response from function call"
+            
+            messages.append(types.Content(role = "tool", parts = function_response.parts))
+            count += 1
+        
+            if verbose:
+                print(f"User prompt: {prompt}")
+                print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
+                print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+                print(f"-> {function_response.parts[0].function_response.response}")    
+            
+    except Exception as e:
+        print(f"Error: Unexpected error {e} occured")
+        return
+
+    return response.text
     
-    if len(function_calls) > 0:
-        for item in function_calls:
-            function_response = call_function(item, verbose)
-    
-    if function_response.parts[0].function_response.response == None:
-        raise "Error: No response from function call"
-
-    if verbose:
-        print(f"User prompt: {prompt}")
-        print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
-        print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
-        print(f"-> {function_response.parts[0].function_response.response}")
 
 
 

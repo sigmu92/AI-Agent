@@ -4,8 +4,12 @@ from google.genai import types
 
 def get_files_info(working_directory, directory = None):
 
-    full_path = os.path.join(working_directory, directory)
-    print(os.path.abspath(full_path))
+    if working_directory == directory:
+        full_path = working_directory
+    else:
+        full_path = os.path.join(working_directory, directory)
+    
+
     if not os.path.isdir(full_path):
         return f'Error: "{directory}" is not a directory'
     elif not working_directory in os.path.abspath(full_path):
